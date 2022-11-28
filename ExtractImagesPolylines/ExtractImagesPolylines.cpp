@@ -25,7 +25,10 @@
 #include <string>
 #include <regex>
 
+#ifndef _WIN64
 #include <sys/stat.h> // UNIXディレクトリ作成用
+#endif
+#include <direct.h>
 
 std::array<double, BLOCK_LENGTH> linear_filter(std::array<double, BLOCK_LENGTH> data, const float numerator[], size_t n_size, const float denominator[], size_t d_size)
 {
@@ -94,7 +97,11 @@ int main(int argc,char *argv[])
 {
 	std::cout << argc<<std::endl;
 	std::string out_dirname = argv[1];
+#ifdef _WIN64
+	_mkdir((out_dirname+"_1").c_str());
+#else
 	mkdir((out_dirname+"_1").c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+#endif
 	for (int i=2;i<argc;i++)
 	{
 		std::cout << argv[i] << std::endl;
@@ -106,7 +113,11 @@ int main(int argc,char *argv[])
 		if(std::regex_search(input_filename,match_results,reg))
 		{
 			dir_name = match_results[1].str();
+#ifdef _WIN64
+			_mkdir((out_dirname+"_1/"+dir_name).c_str()); // UNIX系のディレクトリ作成
+#else
 			mkdir((out_dirname+"_1/"+dir_name).c_str(), S_IRWXU | S_IRWXG | S_IRWXO); // UNIX系のディレクトリ作成
+#endif
 		}
 
         //msgpack

@@ -1,4 +1,4 @@
-#include "QRSdetector.h"
+﻿#include "QRSdetector.h"
 
 void QRSdetector::bandpass_filter(float data[], size_t data_size, float lowcut, float highcut, int signal_freq, int filter_order, float out_result[])
 {
@@ -70,11 +70,14 @@ void QRSdetector::linear_filter(const float data[],size_t data_size, const float
 
 void QRSdetector::detect_peaks()
 {
+#ifdef _WIN64
+	float *_filtered_ecg_measurements = new float[ecg_measurements.size()];
+#else
     float _filtered_ecg_measurements[ecg_measurements.size()];
+#endif
     bandpass_filter(ecg_measurements.data(), ecg_measurements.size(), 0,60,125,1,_filtered_ecg_measurements);
 
-    //移動平均
-    float sum;
+    float sum; //移動平均
     convolve_ecg_measurements.clear();
     for (int i=0;i<ecg_measurements.size();i++) {
         sum = 0;
@@ -106,13 +109,21 @@ void QRSdetector::detect_peaks()
     {
         filtered_ecg_measurements.push_back(_filtered_ecg_measurements[k]);
     }
+#ifdef _WIN64
+	float *squared_ecg_measurements = new float[ecg_measurements.size()];
+#else
     float squared_ecg_measurements[ecg_measurements.size()];
+#endif
     for(int i=0;i<(int)ecg_measurements.size()-1;i++)
     {
         squared_ecg_measurements[i]=(filtered_ecg_measurements[i+1]-filtered_ecg_measurements[i])*(filtered_ecg_measurements[i+1]-filtered_ecg_measurements[i]);
     }
     squared_ecg_measurements[(int)ecg_measurements.size()-1] = 0;
+#ifdef _WIN64
+	float *_integrated_ecg_measurements = new float[ecg_measurements.size()];
+#else
     float _integrated_ecg_measurements[ecg_measurements.size()];
+#endif
     for (int i=0;i<ecg_measurements.size();i++)
     {
         float s = 0;
@@ -137,15 +148,29 @@ void QRSdetector::detect_peaks()
     detected_peaks_indices = findpeaks_revA(_integrated_ecg_measurements,ecg_measurements.size(), findpeaks_spacing, findpeaks_relative_limit, findpeaks_absolute_limit);
     adjust_peak_indices();
 
+#ifdef _WIN64
+    for (int i = 0; i < ecg_measurements.size(); i++)
+    {
+        const float val = _integrated_ecg_measurements[i];
+        integrated_ecg_measurements.push_back(val);
+    }
+#else
     for (float val : _integrated_ecg_measurements)
     {
         integrated_ecg_measurements.push_back(val);
     }
+#endif
     detected_peaks_values = std::vector<float>();
     for (int idx : detected_peaks_indices)
     {
         detected_peaks_values.push_back(_integrated_ecg_measurements[idx]);
     }
+
+#ifdef _WIN64
+	delete [] _filtered_ecg_measurements;
+	delete [] squared_ecg_measurements;
+	delete [] _integrated_ecg_measurements;
+#endif
 }
 void QRSdetector::adjust_peak_indices()
 {
@@ -295,9 +320,15 @@ bool QRSdetector::validate_fft(double& lowfreq_Amp, double& highfreq_Amp)
     }
     float med_peak_val = calc_median(peak_values);
 
+#ifdef _WIN64
+    double *data = new double[BLOCK_LENGTH];
+    double *F = new double[BLOCK_LENGTH*2];
+    double *Amp = new double[BLOCK_LENGTH*2];
+#else
     double data[BLOCK_LENGTH];
     double F[BLOCK_LENGTH*2];
     double Amp[BLOCK_LENGTH*2];
+#endif
     gsl_fft_real_wavetable  * real;
     gsl_fft_halfcomplex_wavetable *hc;
     gsl_fft_real_workspace *w;
@@ -331,6 +362,12 @@ bool QRSdetector::validate_fft(double& lowfreq_Amp, double& highfreq_Amp)
             lowfreq_Amp += Amp[i];
         }
     }
+
+#ifdef _WIN64
+	delete [] data;
+	delete [] F;
+#endif
+
     double half1 = 0.0;
     double half2 = 0.0;
     for (int i=0;i<BLOCK_LENGTH/4;i++)
@@ -338,6 +375,11 @@ bool QRSdetector::validate_fft(double& lowfreq_Amp, double& highfreq_Amp)
         half1 += Amp[i];
         half2 += Amp[i+BLOCK_LENGTH/4];
     }
+
+#ifdef _WIN64
+	delete [] Amp;
+#endif
+
     if (half1>0)
     {
         highfreq_Amp = half2/half1;
@@ -380,7 +422,11 @@ float calc_2ndMax(std::vector<float> scores)
 
 std::vector<int> QRSdetector::findpeaks_revA(const float integrated_ecg_measurements[], size_t measurements_length,  size_t spacing=1, float coeff_limit = 0, float absolute_limit = 0.01f) const
 {
+#ifdef _WIN64
+	float *x = new float[measurements_length+2*spacing];
+#else
     float x[measurements_length+2*spacing];
+#endif
 
     for (int i=0;i<spacing;i++)
     {
@@ -391,7 +437,11 @@ std::vector<int> QRSdetector::findpeaks_revA(const float integrated_ecg_measurem
     {
         x[spacing+i]=integrated_ecg_measurements[i];
     }
+#ifdef _WIN64
+	bool *peak_candidate = new bool[measurements_length];
+#else
     bool peak_candidate[measurements_length];
+#endif
     for (int i=0;i<measurements_length;i++)
     {
         peak_candidate[i] = true;
@@ -399,11 +449,19 @@ std::vector<int> QRSdetector::findpeaks_revA(const float integrated_ecg_measurem
 
     size_t start;
 
+#ifdef _WIN64
+    float *h_b = new float[measurements_length];
+    float *h_c = new float[measurements_length];
+    float *h_a = new float[measurements_length];
+    bool *h_t1 = new bool[measurements_length];
+    bool *h_t2 = new bool[measurements_length];
+#else
     float h_b[measurements_length];
     float h_c[measurements_length];
     float h_a[measurements_length];
     bool h_t1[measurements_length];
     bool h_t2[measurements_length];
+#endif
     for (size_t s=0;s<spacing;s++)
     {
         start = spacing-s-1;
@@ -490,11 +548,26 @@ std::vector<int> QRSdetector::findpeaks_revA(const float integrated_ecg_measurem
         }
         peak_values.clear();
     }
+	
+#ifdef _WIN64
+	delete [] x;
+	delete [] peak_candidate;
+	delete [] h_b;
+	delete [] h_c;
+	delete [] h_a;
+	delete [] h_t1;
+	delete [] h_t2;
+#endif
+
     return results;
 }
 std::vector<int> QRSdetector::findpeaks(const float integrated_ecg_measurements[], size_t measurements_length,  int spacing=1, float limit = 0)
 {
+#ifdef _WIN64
+    float *x = new float[measurements_length+2*spacing];
+#else
     float x[measurements_length+2*spacing];
+#endif
 
     for (int i=0;i<spacing;i++)
     {
@@ -505,7 +578,11 @@ std::vector<int> QRSdetector::findpeaks(const float integrated_ecg_measurements[
     {
         x[spacing+i]=integrated_ecg_measurements[i];
     }
+#ifdef _WIN64
+    bool *peak_candidate = new bool[measurements_length];
+#else
     bool peak_candidate[measurements_length];
+#endif
     for (int i=0;i<measurements_length;i++)
     {
         peak_candidate[i] = true;
@@ -513,11 +590,19 @@ std::vector<int> QRSdetector::findpeaks(const float integrated_ecg_measurements[
 
     size_t start;
 
+#ifdef _WIN64
+    float *h_b = new float[measurements_length];
+    float *h_c = new float[measurements_length];
+    float *h_a = new float[measurements_length];
+    bool *h_t1 = new bool[measurements_length];
+    bool *h_t2 = new bool[measurements_length];
+#else
     float h_b[measurements_length];
     float h_c[measurements_length];
     float h_a[measurements_length];
     bool h_t1[measurements_length];
     bool h_t2[measurements_length];
+#endif
     for (size_t s=0;s<spacing;s++)
     {
         start = spacing-s-1;
@@ -549,6 +634,17 @@ std::vector<int> QRSdetector::findpeaks(const float integrated_ecg_measurements[
             peaks.push_back(i);
         }
     }
+	
+#ifdef _WIN64
+	delete [] x;
+	delete [] peak_candidate;
+	delete [] h_b;
+	delete [] h_c;
+	delete [] h_a;
+	delete [] h_t1;
+	delete [] h_t2;
+#endif
+
     return peaks;
 }
 
