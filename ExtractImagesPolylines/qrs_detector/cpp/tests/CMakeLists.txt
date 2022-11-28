@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.20)
+project(qrs_detector_test)
+set(CMAKE_CXX_STANDARD 14)
+include_directories(/home/cloud/qrs_detector/cpp /home/cloud/HolterDataManager/include)
+add_executable(qrs_detector_test main.cpp)
+target_link_libraries(qrs_detector_test qrs_detector HolterDataManager)

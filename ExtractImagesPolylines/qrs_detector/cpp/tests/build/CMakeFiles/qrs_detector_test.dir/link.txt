@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/qrs_detector_test.dir/main.cpp.o -o qrs_detector_test  -lqrs_detector -lHolterDataManager 

@@ -1,0 +1,3 @@
+/home/cloud/ai-cardiologist/docker/ai-engine/src/qrs_detector/cpp/tests/build/CMakeFiles/qrs_detector_test.dir
+/home/cloud/ai-cardiologist/docker/ai-engine/src/qrs_detector/cpp/tests/build/CMakeFiles/edit_cache.dir
+/home/cloud/ai-cardiologist/docker/ai-engine/src/qrs_detector/cpp/tests/build/CMakeFiles/rebuild_cache.dir
