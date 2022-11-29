@@ -15,7 +15,9 @@
 #include "HolterDataManager.h"
 
 #include <numeric>
-#define BLOCK_LENGTH 3750
+#define BLOCK_SECOND 30
+#define SAMPLE_SECOND (8e-3)
+#define BLOCK_LENGTH (int)(BLOCK_SECOND / SAMPLE_SECOND)
 #define PLOT_HEIGHT  783
 #define OUTPUT_HEIGHT 264
 #define OUTPUT_WIDTH 1264
@@ -24,6 +26,8 @@
 #include <memory>
 #include <string>
 #include <regex>
+
+#include <iomanip>
 
 #ifndef _WIN64
 #include <sys/stat.h> // UNIXディレクトリ作成用
@@ -74,38 +78,57 @@ std::array<double, BLOCK_LENGTH>  normalize(std::array<double, BLOCK_LENGTH> dat
 
 int conv_ycoordinate(double y, double ymin, double ymax)
 {
-	if(ymax>0)
-	{
-		ymax=std::ceil(ymax);
+	int yconv = 0;
+
+	ymax=std::ceil(ymax);
+	ymin=std::floor(ymin);
+
+	if (ymax != ymin) {
+		yconv = (int)((ymax-y)*PLOT_HEIGHT/(ymax-ymin));
+	} else {
+		// middle of the height
+		yconv = (int)((ymax - y) + PLOT_HEIGHT / 2);
 	}
-	else
-	{
-		ymax=std::floor(ymax);
-	}
-	if(ymin>0)
-	{
-		ymin=std::ceil(ymin);
-	}
-	else
-	{
-		ymin=std::floor(ymin);
-	}
-	return (int)((ymax-y)*PLOT_HEIGHT/(ymax-ymin));
+
+	return yconv;
 
 }
+
+std::string make_datetime()
+{
+    time_t t = time(NULL);
+    struct tm local;
+    std::stringstream ss;
+
+    localtime_s(&local, &t);
+
+    ss << std::setw(4) << std::setfill('0') << local.tm_year + 1900;
+    ss << std::setw(2) << std::setfill('0') << local.tm_mon + 1;  // [0-11]
+    ss << std::setw(2) << std::setfill('0') << local.tm_mday;  // [1-31]
+    ss << std::setw(2) << std::setfill('0') << local.tm_hour;
+    ss << std::setw(2) << std::setfill('0') << local.tm_min;
+    ss << std::setw(2) << std::setfill('0') << local.tm_sec;
+
+	return ss.str();
+}
+
 int main(int argc,char *argv[])
 {
 	std::cout << argc<<std::endl;
 	std::string out_dirname = argv[1];
+
+	std::string out_dirname_suff = out_dirname + "_" + make_datetime();
+
 #ifdef _WIN64
-	_mkdir((out_dirname+"_1").c_str());
+	_mkdir(out_dirname_suff.c_str());
 #else
-	mkdir((out_dirname+"_1").c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+	mkdir(out_dirname_suff.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
 #endif
 	for (int i=2;i<argc;i++)
 	{
 		std::cout << argv[i] << std::endl;
 		std::string input_filename = argv[i];
+		std::string out_dir_number;
 		
 		std::regex reg("([0-9]+)_Rac2.*");
 		std::smatch match_results;
@@ -113,10 +136,11 @@ int main(int argc,char *argv[])
 		if(std::regex_search(input_filename,match_results,reg))
 		{
 			dir_name = match_results[1].str();
+			out_dir_number = out_dirname_suff + "/" + dir_name;
 #ifdef _WIN64
-			_mkdir((out_dirname+"_1/"+dir_name).c_str()); // UNIX系のディレクトリ作成
+			_mkdir(out_dir_number.c_str()); // WINDOWS系のディレクトリ作成
 #else
-			mkdir((out_dirname+"_1/"+dir_name).c_str(), S_IRWXU | S_IRWXG | S_IRWXO); // UNIX系のディレクトリ作成
+			mkdir(out_dir_number.c_str(), S_IRWXU | S_IRWXG | S_IRWXO); // UNIX系のディレクトリ作成
 #endif
 		}
 
@@ -204,7 +228,7 @@ int main(int argc,char *argv[])
 
 			cv::resize(plotMat,display,cv::Size(OUTPUT_WIDTH, OUTPUT_HEIGHT),0,0,cv::INTER_AREA);
 
-			std::string output_filename1 = out_dirname+"_1/"+dir_name+"/" + std::to_string(block) + ".png";
+			std::string output_filename1 = out_dir_number + "/" + std::to_string(block) + ".png";
 			imwrite(output_filename1, display);
 		}
 	}
