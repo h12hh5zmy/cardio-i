@@ -15,9 +15,9 @@
 #include "HolterDataManager.h"
 
 #include <numeric>
-#define BLOCK_SECOND 30
-#define SAMPLE_SECOND (8e-3)
-#define BLOCK_LENGTH (int)(BLOCK_SECOND / SAMPLE_SECOND)
+#define BLOCK_FREQUENCY 125
+#define BLOCK_TIME_SEC 30
+#define BLOCK_LENGTH (BLOCK_FREQUENCY * BLOCK_TIME_SEC)
 #define PLOT_HEIGHT  783
 #define OUTPUT_HEIGHT 264
 #define OUTPUT_WIDTH 1264
